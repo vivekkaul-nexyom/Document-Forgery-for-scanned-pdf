@@ -12,8 +12,11 @@ from PIL.Image import ExifTags  # For EXIF tag lookup
 # Layout
 st.set_page_config(layout="wide")
 
-# Error Level Analysis (ELA) Function
-def detect_bright_spots(image, resave_quality=40, enhancement=30, threshold_value=30):
+from PIL import Image, ImageEnhance, ImageChops
+import numpy as np
+import cv2
+
+def detect_bright_spots(image, resave_quality=10, enhancement=30, threshold_value=30):
     # Load the original image
     original_image = image
 
@@ -45,14 +48,9 @@ def detect_bright_spots(image, resave_quality=40, enhancement=30, threshold_valu
 
     # Load the original image in OpenCV format
     original_cv2 = cv2.cvtColor(np.array(original_image), cv2.COLOR_RGB2BGR)
-    for a in contours:
-        print(cv2.contourArea(a))
-    contours_new = [x for x in contours if cv2.contourArea(x) > 1000 and cv2.contourArea(x) < 2000] #or cv2.contourArea(x) > 4000 ]
-    print(contours_new)
-    if len(contours_new) == 0:
-        # contours_new = [x for x in contours if cv2.contourArea(x) < 1000] #and cv2.contourArea(x) < 2000]
-        print(contours_new)
-
+    
+    contours_new = [x for x in contours if 1000 < cv2.contourArea(x) < 2000]
+    
     # Draw contours only for bright spots
     cv2.drawContours(original_cv2, contours_new, -1, (0, 0, 255), 4)  # red for bright tampering areas
 

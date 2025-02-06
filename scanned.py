@@ -181,78 +181,86 @@ class DocumentComparator:
         marked_image_path = os.path.join(folder, "marked_image.png")
         cv2.imwrite(marked_image_path, marked_image)
         return marked_image_path
+    
+     # Helper function to extract image metadata
+    def extract_image_metadata(image: Image.Image):
+     exif_data = image._getexif()  # Extract EXIF metadata from the image
+     if not exif_data:
+        return {"Metadata": "No EXIF metadata found."}
+    
+     metadata = {Image.ExifTags.TAGS.get(tag, tag): value for tag, value in exif_data.items() if tag in Image.ExifTags.TAGS}
+     return metadata    
 
-# Streamlit UI Layout for Document Comparison and ELA/Metadata Analysis
-if option == "ELA/Metadata analysis":
-    # ELA/Metadata Analysis Section
-    col1, col2 = st.columns([1, 2])
+    # Streamlit UI Layout for Document Comparison and ELA/Metadata Analysis
+    if option == "ELA/Metadata analysis":
+        # ELA/Metadata Analysis Section
+        col1, col2 = st.columns([1, 2])
 
-    with col1:
-        uploaded_file = st.file_uploader("Upload a JPEG image or PDF", type=["jpg", "jpeg", "pdf"])
-        if uploaded_file:
-            if uploaded_file.type == "application/pdf":
-                pdf_bytes = uploaded_file.read()
-                images = pdf_to_images(pdf_bytes)
-                st.write("**PDF Converted to Images:**")
-                # Only display images in col1, no ELA analysis here
-                for i, img in enumerate(images):
-                    st.image(img, caption=f"Page {i+1}", use_container_width=True)
-            else:
-                image = Image.open(uploaded_file)
-                st.image(image, caption="Uploaded Image", use_container_width=True)
-
-    with col2:
-        st.title("ANALYSIS")
-
-        # Metadata Extraction (for PDF)
-        if uploaded_file:
-            if uploaded_file.type == "application/pdf":
-                result = extract_metadata_pymupdf(pdf_bytes)
-                metadata = result.get("metadata")
-                anomalies = result.get("anomalies")
-                if anomalies:
-                    if "Suspicious" in anomalies or "Inconsistent" in anomalies:
-                        status = "Critical Anomalies Detected"
-                        color = "red"
-                    else:
-                        status = "Some Anomalies Detected"
-                        color = "yellow"
+        with col1:
+            uploaded_file = st.file_uploader("Upload a JPEG image or PDF", type=["jpg", "jpeg", "pdf"])
+            if uploaded_file:
+                if uploaded_file.type == "application/pdf":
+                    pdf_bytes = uploaded_file.read()
+                    images = pdf_to_images(pdf_bytes)
+                    st.write("**PDF Converted to Images:**")
+                    # Only display images in col1, no ELA analysis here
+                    for i, img in enumerate(images):
+                        st.image(img, caption=f"Page {i+1}", use_container_width=True)
                 else:
-                    status = "No Anomalies Detected"
-                    color = "green"
+                    image = Image.open(uploaded_file)
+                    st.image(image, caption="Uploaded Image", use_container_width=True)
 
-                st.markdown(
-                    f"<div style='background-color:{color}; padding: 10px; color: black; font-weight: bold;'>"
-                    f"{status}</div>",
-                    unsafe_allow_html=True
-                )
+        with col2:
+            st.title("ANALYSIS")
 
-                st.write("**PDF Metadata:**")
-                for key, value in metadata.items():
-                    st.write(f"{key}: {value}")
+            # Metadata Extraction (for PDF or Image)
+            if uploaded_file:
+                if uploaded_file.type == "application/pdf":
+                    result = extract_metadata_pymupdf(pdf_bytes)
+                    metadata = result.get("metadata")
+                    anomalies = result.get("anomalies")
+                    if anomalies:
+                        if "Suspicious" in anomalies or "Inconsistent" in anomalies:
+                            status = "Critical Anomalies Detected"
+                            color = "red"
+                        else:
+                            status = "Some Anomalies Detected"
+                            color = "yellow"
+                    else:
+                        status = "No Anomalies Detected"
+                        color = "green"
 
-            else:
-                result = error_level_analysis(image)
-                if result is not None:
-                    with st.expander("ERROR LEVEL ANALYSIS (ELA)"):
+                    st.markdown(
+                        f"<div style='background-color:{color}; padding: 10px; color: black; font-weight: bold;'>"
+                        f"{status}</div>",
+                        unsafe_allow_html=True
+                    )
 
-                        st.image(result, caption="Error Level Analysis", use_container_width=True)
+                    st.write("**PDF Metadata:**")
+                    for key, value in metadata.items():
+                        st.write(f"{key}: {value}")
 
-        # Now add the Error Level Analysis (ELA) after Metadata section
-        if uploaded_file:
-            if uploaded_file.type == "application/pdf":
-                for img in images:
-                    ela_result = error_level_analysis(img)
-                    if ela_result is not None:
+                else:
+                    # Metadata Analysis for Image
+                    st.write("**Image Metadata:**")
+                    image_metadata = extract_image_metadata(image)
+                    for key, value in image_metadata.items():
+                        st.write(f"{key}: {value}")
+
+                    # ELA for the image
+                    result = error_level_analysis(image)
+                    if result is not None:
                         with st.expander("ERROR LEVEL ANALYSIS (ELA)"):
+                            st.image(result, caption="Error Level Analysis", use_container_width=True)
 
-                            st.image(ela_result, caption="Error Level Analysis", use_container_width=True)
-            else:
-                ela_result = error_level_analysis(image)
-                if ela_result is not None:
-                    with st.expander("ERROR LEVEL ANALYSIS (ELA)"):
-
-                        st.image(ela_result, caption="Error Level Analysis", use_container_width=True)
+            # ELA for PDFs
+            if uploaded_file:
+                if uploaded_file.type == "application/pdf":
+                    for img in images:
+                        ela_result = error_level_analysis(img)
+                        if ela_result is not None:
+                            with st.expander("ERROR LEVEL ANALYSIS (ELA)"):
+                                st.image(ela_result, caption="Error Level Analysis", use_container_width=True)  
 
 
 if option == "Document Comparison":
